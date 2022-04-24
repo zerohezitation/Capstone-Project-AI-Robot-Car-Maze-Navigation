@@ -4,6 +4,8 @@ import json
 import re
 import threading
 import time
+import sys
+import getopt
 from sensor import get_distance
 import testmotor
 
@@ -81,21 +83,38 @@ def update_sensors():
 # TODO spawn a new thread that updates the motor power values based on messages from the server
 def update_motors():
     while True:
-        #print(motor_dict["servos"][0]["servoSpeed"])
-        #print(motor_dict)
+        speed = abs(motor_dict["servos"][0]["servoSpeed"])
+        
         if(motor_dict["servos"][0]["servoSpeed"] > 0 and motor_dict["servos"][1]["servoSpeed"] > 0) :
-            testmotor.go_Forward()
+            testmotor.go_Forward(speed)
         elif(motor_dict["servos"][0]["servoSpeed"] < 0 and motor_dict["servos"][1]["servoSpeed"] < 0) :
-            testmotor.go_Backward()
+            testmotor.go_Backward(speed)
         elif(motor_dict["servos"][0]["servoSpeed"] < 0 and motor_dict["servos"][1]["servoSpeed"] > 0) :
-            testmotor.go_Left()
+            testmotor.go_Left(speed)
         elif(motor_dict["servos"][0]["servoSpeed"] > 0 and motor_dict["servos"][1]["servoSpeed"] < 0) :
-            testmotor.go_Right()
+            testmotor.go_Right(speed)
         elif(motor_dict["servos"][0]["servoSpeed"] == 0 and motor_dict["servos"][1]["servoSpeed"] == 0) :
             testmotor.stop()
 
 # Main loop
-def main():
+def main(argv):
+    global HOST, PORT
+    try:
+        # Attempt to parse the command line arguments
+        opts, args = getopt.getopt(argv, "h:p:", ["host", "port"])
+    except getopt.GetoptError:
+        # If parsing was unsuccessful, show the proper usage and exit
+        print("main.py -h <HostIPAddress> -p <Port>")
+        sys.exit(2)
+
+    # Take the appropriate action for each command line argument
+    for opt, arg in opts:
+        print(opts)
+        if opt == "-h":
+            HOST = arg
+        if opt == "-p":
+            PORT = int(arg)
+
     t1 = threading.Thread(target=update_sensors, args=[])
     t1.start()
     t2 = threading.Thread(target=update_motors, args=[])
@@ -110,4 +129,5 @@ def main():
         print("Closing connection.")
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
+
