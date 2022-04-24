@@ -28,33 +28,29 @@ I2C_HEADLIGHT_LEFT_ON   = 0x3601
 I2C_HEADLIGHT_RIGHT_OFF = 0x3700
 I2C_HEADLIGHT_RIGHT_ON  = 0x3701
 
-def go_Forward():
+def set_Speed(speed):
+    if(speed < 0.5) :
+        I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_LEFT_SPEED_SLOW)
+        I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_RIGHT_SPEED_SLOW)
+    else :
+        I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_LEFT_SPEED_FAST)
+        I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_RIGHT_SPEED_FAST)
 
+def go_Forward(speed):
+    set_Speed(speed)
     I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_FORWARD)
 
-def go_Backward():
+def go_Backward(speed):
+    set_Speed(speed)
     I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_BACKWARD)
     
-def go_Left():
-    #I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_LEFT_SPEED_SLOW)
+def go_Left(speed):
+    set_Speed(speed)
     I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_LEFT)
 
-def go_Right():
-    #I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_RIGHT_SPEED_FAST)
+def go_Right(speed):
+    set_Speed(speed)
     I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_RIGHT)
 
 def stop():
     I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_STOP)
-
-#def turn_circle():
-# I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_LEFT_SPEED_FAST)
-# time.sleep(0.01)
-# I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_RIGHT_SPEED_FAST)
-# time.sleep(0.01)
-# I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_LEFT)
-# time.sleep(2)
-# I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_RIGHT)
-# time.sleep(2)
-# I2C_BUS.write_word_data(I2C_ADDRESS, I2C_COMMAND, I2C_STOP)
-# time.sleep(0.01)
-
