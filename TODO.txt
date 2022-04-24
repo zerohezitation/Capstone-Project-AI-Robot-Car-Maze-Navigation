@@ -1,5 +1,9 @@
 First, create manual for Professor Chen on how to use the middleware(in README) and how the VIPLE programs are meant to be used with the middleware.
-
+- pip install websockets
+- pip install smbus2
+- pip install asyncio
+- sudo apt-get update
+- get sean to download middleware on 3rd robot
 Some changes that need to be made with the middleware:
 - Setting up an agrument function for entering in the host and port (needs to be set to the Wi-Fi ip address on both VIPLE and middleware)
 - Comment the existing middleware code to make more readable
