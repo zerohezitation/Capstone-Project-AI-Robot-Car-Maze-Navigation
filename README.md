@@ -4,8 +4,7 @@
 ### Setting up a new car
 #### Step 1
 Try booting up the Raspberry Pi using the Labists SD card that comes with the car or follow the note below if you coose to use a different SD card.
-**Note: If the Raspberry Pi is unable to boot due too not having Raspian installed then you need to use the flash drive with the SD card 
-inserted and download Raspian onto the SD card.**
+###### **Note: If the Raspberry Pi is unable to boot due too not having Raspian installed then you need to use the flash drive with the SD card inserted and download Raspian onto the SD card.**
 
 #### Step 2
 After downloading Raspian, try booting the Raspberry Pi up once again. If it is unable to boot up then re-install Raspian and try again.
