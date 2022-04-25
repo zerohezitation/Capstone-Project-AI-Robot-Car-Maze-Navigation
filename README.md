@@ -14,8 +14,7 @@ When going through the setup you will need to connect to a Wi-Fi network, or con
 #### Step 3 
 Once you are booted up now you need to go to the Raspberry Pi Menu located in the top left and then
 select Prefrences > Raspberry Pi Configuration > Interfaces and make sure that I2C and Remote GPIO are enabled.
-###### **Helpful: To make life easier we also suggest enabling VNC so that you can connect from a desktop or laptop to the Raspberry Pi 
-without having to connect your keyboard and mouse to the Raspberry PI.**
+###### **Helpful: To make life easier we also suggest enabling VNC so that you can connect from a desktop or laptop to the Raspberry Pi without having to connect your keyboard and mouse to the Raspberry PI.**
 
 #### Step 4 
 Now make a new terminal window and install the following dependencies which are used in the middleware by using these commands:
