@@ -9,12 +9,12 @@ Try booting up the Raspberry Pi using the Labists SD card that comes with the ca
 #### Step 2
 After downloading Raspian, try booting the Raspberry Pi up once again. If it is unable to boot up then re-install Raspian and try again.
 When going through the setup you will need to connect to a Wi-Fi network, or connect to one once you make it to the Desktop screen.
-**Note: Make sure you have the HDMI connected to 2nd HDMI port sometimes it wont boot up if it is connect to the port closest to the power port.**
+###### **Note: Make sure you have the HDMI connected to 2nd HDMI port sometimes it wont boot up if it is connect to the port closest to the power port.**
 
 #### Step 3 
 Once you are booted up now you need to go to the Raspberry Pi Menu located in the top left and then
 select Prefrences > Raspberry Pi Configuration > Interfaces and make sure that I2C and Remote GPIO are enabled.
-**Helpful: To make life easier we also suggest enabling VNC so that you can connect from a desktop or laptop to the Raspberry Pi 
+###### **Helpful: To make life easier we also suggest enabling VNC so that you can connect from a desktop or laptop to the Raspberry Pi 
 without having to connect your keyboard and mouse to the Raspberry PI.**
 
 #### Step 4 
@@ -41,10 +41,10 @@ Open a new terminal and go to the directory where you have the middle ware files
 Before executing the program make sure that your VIPLE program is running on another computer.
 To run the middleware use the command:
 python main.py
-**Note: The above command will work if you modified the 'main.py' file with the new host ip address from the Wi-Fi network you are connected to.**
+###### **Note: The above command will work if you modified the 'main.py' file with the new host ip address from the Wi-Fi network you are connected to.**
 To run the middleware by passing the host ip address through the command line use the command:
 python main.py -h *insert host ip address*
-**Note: If you are using a specific port other than '8124' on your VIPLE program then you can also pass that as an argument as well**
+###### **Note: If you are using a specific port other than '8124' on your VIPLE program then you can also pass that as an argument as well**
 To run the middleware by passing in both the host ip address and port through the command line use the command:
 python main.py -h *insert host ip address* -p *insert port*
 
