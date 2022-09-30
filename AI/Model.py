@@ -14,9 +14,12 @@ from keras import layers
 import keras
 
 # load the dataset --- FIGURE THIS PART OUT IT DOESNT WORK RIGHT NOW
-data_path = "/Users/mgriffin/OneDrive/Documents/CapstoneProject/repo/Capstone-Project-AI-Robot-Car-Maze-Navigation/TrackImages"
-data_dir = tf.keras.utils.get_file("TrackImages", origin=data_path, untar=True)
-data_dir = pathlib.Path(data_dir)
+data_path = r"TrackImages\Images1_50"
+# data_dir = tf.keras.utils.get_file(fname=data_path)
+data_dir = pathlib.Path(data_path)
+img_width = 640
+img_height = 480
+
 
 image_count = len(list(data_dir.glob("*/*.png")))
 print(image_count)
@@ -24,21 +27,26 @@ print(image_count)
 # Load data with Keras now
 # create training dataset and validation dataset
 train_ds = tf.keras.utils.image_dataset_from_directory(
-    data_dir, validation_split=0.2, subset="training"
+    data_dir,
+    seed=4,
+    image_size=(img_height, img_width),
+    validation_split=0.2,
+    subset="training",
 )  # we may need to add more parameters here
 val_ds = tf.keras.utils.image_dataset_from_directory(
-    data_dir, validation_split=0.2, subset="validation"
+    data_dir,
+    seed=4,
+    image_size=(img_height, img_width),
+    validation_split=0.2,
+    subset="validation",
 )  # and here
 
 # eventually we will need to specify class names in the training data such as straight, left, right
 
-
+class_names = train_ds.class_names
 num_classes = len(
     class_names
 )  # FIX CLASS NAMES THIS DEPENDS ON HOW THE TEST IMAGES FOLDER IS SET UP
-
-img_width = 640
-img_height = 480
 
 
 model = Sequential(
