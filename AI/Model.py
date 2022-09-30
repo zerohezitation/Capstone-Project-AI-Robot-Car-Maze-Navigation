@@ -31,3 +31,40 @@ val_ds = tf.keras.utils.image_dataset_from_directory(
 )  # and here
 
 # eventually we will need to specify class names in the training data such as straight, left, right
+
+
+num_classes = len(
+    class_names
+)  # FIX CLASS NAMES THIS DEPENDS ON HOW THE TEST IMAGES FOLDER IS SET UP
+
+img_width = 640
+img_height = 480
+
+
+model = Sequential(
+    [
+        layers.Rescaling(1.0 / 255, input_shape=(img_height, img_width, 3)),
+        layers.Conv2D(16, 3, padding="same", activation="relu"),
+        layers.MaxPooling2D(),
+        layers.Conv2D(32, 3, padding="same", activation="relu"),
+        layers.MaxPooling2D(),
+        layers.Conv2D(64, 3, padding="same", activation="relu"),
+        layers.MaxPooling2D(),
+        layers.Flatten(),
+        layers.Dense(128, activation="relu"),
+        layers.Dense(num_classes),
+    ]
+)
+
+model.compile(
+    optimizer="adam",
+    loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    metrics=["accuracy"],
+)
+
+# view the summary of all the layers in the model
+model.summary()
+
+# train the model
+epochs = 10
+history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
