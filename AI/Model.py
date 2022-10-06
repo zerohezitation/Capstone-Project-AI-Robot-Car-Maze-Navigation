@@ -32,6 +32,7 @@ train_ds = tf.keras.utils.image_dataset_from_directory(
     image_size=(img_height, img_width),
     validation_split=0.2,
     subset="training",
+    batch_size=32,
 )  # we may need to add more parameters here
 val_ds = tf.keras.utils.image_dataset_from_directory(
     data_dir,
@@ -39,6 +40,7 @@ val_ds = tf.keras.utils.image_dataset_from_directory(
     image_size=(img_height, img_width),
     validation_split=0.2,
     subset="validation",
+    batch_size=32,
 )  # and here
 
 # eventually we will need to specify class names in the training data such as straight, left, right
@@ -48,16 +50,43 @@ num_classes = len(
     class_names
 )  # FIX CLASS NAMES THIS DEPENDS ON HOW THE TEST IMAGES FOLDER IS SET UP
 
+# add data augmentation to introduce new images to the model generated from the given training set
+augmentation_layer = keras.Sequential(
+    [
+        layers.RandomFlip("horizontal", input_shape=(img_height, img_width, 3)),
+        layers.RandomRotation(0.1),
+        layers.RandomZoom(0.1),
+    ]
+)
+
+# model = Sequential(
+#     [
+#         augmentation_layer,
+#         layers.Rescaling(1.0 / 255, input_shape=(img_height, img_width, 3)),
+#         layers.Conv2D(16, 3, padding="same", activation="relu"),
+#         layers.MaxPooling2D(),
+#         layers.Conv2D(32, 3, padding="same", activation="relu"),
+#         layers.MaxPooling2D(),
+#         layers.Conv2D(64, 3, padding="same", activation="relu"),
+#         layers.MaxPooling2D(),
+#         layers.Dropout(rate=0.25),
+#         layers.Flatten(),
+#         layers.Dense(128, activation="relu"),
+#         layers.Dense(num_classes),
+#     ]
+# )
+
 
 model = Sequential(
     [
         layers.Rescaling(1.0 / 255, input_shape=(img_height, img_width, 3)),
-        layers.Conv2D(16, 3, padding="same", activation="relu"),
-        layers.MaxPooling2D(),
-        layers.Conv2D(32, 3, padding="same", activation="relu"),
-        layers.MaxPooling2D(),
-        layers.Conv2D(64, 3, padding="same", activation="relu"),
-        layers.MaxPooling2D(),
+        layers.Conv2D(6, kernel_size=(5, 5), strides=1, padding="valid"),
+        layers.ReLU(),
+        layers.MaxPooling2D(pool_size=(2, 2), strides=2),
+        layers.Conv2D(16, kernel_size=(5, 5), strides=1, padding="valid"),
+        layers.ReLU(),
+        layers.MaxPooling2D(pool_size=(2, 2), strides=2),
+        layers.Dropout(rate=0.25),
         layers.Flatten(),
         layers.Dense(128, activation="relu"),
         layers.Dense(num_classes),
@@ -66,7 +95,7 @@ model = Sequential(
 
 model.compile(
     optimizer="adam",
-    loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
     metrics=["accuracy"],
 )
 
@@ -74,5 +103,5 @@ model.compile(
 model.summary()
 
 # train the model
-epochs = 10
+epochs = 5
 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
