@@ -164,16 +164,9 @@ history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
 
 # convert to tensorflow lite model
 # Convert the model.
-# converter = tf.lite.TFLiteConverter.from_keras_model(model)
-# tflite_model = converter.convert()
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+tflite_model = converter.convert()
 
-# # Save the model.
-# with open("model.tflite", "wb") as f:
-#     f.write(tflite_model)
-
-# TF_MODEL_FILE_PATH = (
-#     "model.tflite"  # The default path to the saved TensorFlow Lite model
-# )
-
-# interpreter = tf.lite.Interpreter(model_path=TF_MODEL_FILE_PATH)
-# interpreter.get_signature_list()
+# Save the model.
+with open("model.tflite", "wb") as f:
+    f.write(tflite_model)
