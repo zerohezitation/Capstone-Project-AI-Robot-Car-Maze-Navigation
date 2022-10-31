@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import sys
 from collections import deque
+import time
 #import matplotlib.pyplot as plt
 
 from .sensor import Sensor
@@ -9,6 +10,14 @@ from common.camera import Camera
 from common.utils import *
 
 # TODO: This needs to be cleaned up a lot, this is the result of a lot of experimenting to see what gives the best results
+
+"""
+AngleSensor
+
+You can run this file standalone to test out the sensor without running the middleware:
+
+python3 -m middleware.devices.sensors.angle_sensor
+"""
 
 
 class AngleSensor(Sensor):
@@ -450,3 +459,12 @@ def get_angle_from__points(x1, y1, x2, y2):
     slope = ((np.arctan((y2 - y1) / (x2 - x1)) %
               np.pi * 2) - np.pi) * (180 / np.pi)
     return slope
+
+
+if __name__ == "__main__":
+    camera = Camera()
+    with camera as cam:
+        sensor = AngleSensor(cam)
+        while True:
+            print(sensor.run())
+            time.sleep(0.05)

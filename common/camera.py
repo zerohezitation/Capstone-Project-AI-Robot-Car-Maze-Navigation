@@ -9,17 +9,19 @@ from .utils import process_image
 
 """
 Camera Sensor
+This class reads frames from the device's attached camera, and stores them in a buffer.
+We do this because:
+1) it takes a non-trivial amount of time to read from the camera and
+2) multiple things may want to use the camera at the same time
+By constantly updating the buffer, there is always a frame available to read, and we won't
+bottleneck the other parts of the pipeline waiting for I/O.
 
 Create a camera:
-cam = Camera()
-with cam as c:
-    # Use c here
+with Camera() as camera:
+    # Use camera here
 
 Read a raw camera frame:
 frame = cam.read()
-
-Read a processed camera frame:
-p_frame = cam.read_p()
 """
 
 
@@ -38,16 +40,12 @@ class Camera:
         self.raw_frame_buffer_lock = Lock()
         self.processed_frame_buffer_lock = Lock()
 
-        ev = Event()
+        self.ev = Event()
 
         # Start thread that takes snapshots and writes them to buffer
         self.raw_camera_thread = Thread(
-            target=self.camera_reader, args=(cam_port, ev))
+            target=self.camera_reader, args=(cam_port,))
         self.raw_camera_thread.start()
-
-        # Start thread that proccesses frames from the buffer
-        self.processor_thread = Thread(target=self.processor, args=(ev,))
-        self.processor_thread.start()
 
     # Entering the context of a camera "with Camera() as cam"
     def __enter__(self):
@@ -57,10 +55,9 @@ class Camera:
     def __exit__(self, type, value, traceback):
         self.stop = True
         self.raw_camera_thread.join()
-        self.processor_thread.join()
 
     # Worker for reading raw frames from the camera
-    def camera_reader(self, cam_port: int, ev: Event):
+    def camera_reader(self, cam_port: int):  # , ev: Event):
 
         # use V4L2 backend to be able to adjust fraame rate >15fps
         cam = cv2.VideoCapture(cam_port, cv2.CAP_V4L2)
@@ -78,23 +75,11 @@ class Camera:
                 self.raw_frame_buffer_lock.acquire()
                 self.current_frame = image
                 self.raw_frame_buffer_lock.release()
-                ev.set()
+                self.ev.set()
             time.sleep(0.05)
 
         # release the video stream - otherwise we won't be able to start up again without restarting the pi
         cam.release()
-
-    # Worker for processing frames from the camera (resize + gauss + canny)
-    def processor(self, ev: Event):
-        while not self.stop:
-            ev.wait()
-            img = self.read()
-            proc = process_image(img)
-            #cv2.imshow("proc", img)
-            self.processed_frame_buffer_lock.acquire()
-            self.processed_frame = proc
-            self.processed_frame_buffer_lock.release()
-            time.sleep(0.05)
 
     # Read a raw frame from the buffer (no processing)
     def read(self):
@@ -107,18 +92,6 @@ class Camera:
 
             # If the frame from the buffer is None, the camera hasn't started up yet
             # Wait a little while for it to warm up
-            if frame is None or len(frame) == 0:
-                time.sleep(0.1)
-        return frame
-
-    # Read a processed frame from the buffer (resize + gauss + canny)
-    def read_p(self):
-        frame = []
-        while frame is None or len(frame) == 0:
-            self.processed_frame_buffer_lock.acquire()
-            #frame = np.copy(self.current_frame)
-            frame = self.processed_frame
-            self.processed_frame_buffer_lock.release()
             if frame is None or len(frame) == 0:
                 time.sleep(0.1)
         return frame

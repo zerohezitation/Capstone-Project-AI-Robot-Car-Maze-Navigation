@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 
-epochs = 30
+epochs = 150
 
 #data_path = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/AI/TrackImages/Images1_50"
-data_path = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/ai/new_processed_images"
+data_path = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/dataset_09_23_24_826977"
 
 
 def train_model():
@@ -19,19 +19,20 @@ def train_model():
     img_width = 160  # 640
     img_height = 64  # 480
     batch_size = 32
-    class_names = ["OffTrack", "LeftTurn", "OffsetLeft",
-                   "Straight", "OffsetRight", "RightTurn"]
+    # class_names = ["LeftTurn", "OffsetLeft",
+    # "Straight", "OffsetRight", "RightTurn"]
+    class_names = ["OffsetRight", "Straight", "OffsetLeft"]
 
     train_ds, val_ds = tf.keras.utils.image_dataset_from_directory(
         data_dir,
-        labels="inferred",
+        labels="inferred",  # labels are from directory names
         label_mode="int",
         class_names=class_names,
-        color_mode="grayscale",
-        seed=4,
-        image_size=(64, 160),
-        validation_split=0.2,
-        subset="both",
+        color_mode="grayscale",  # use only 1 channel
+        seed=4,  # must set a specific seed for deterministic validation split
+        image_size=(64, 160),  # resize input images down to 160x64
+        validation_split=0.2,  # use 20% of training images for validation
+        subset="both",  # return training dataset and validation dataset
         batch_size=batch_size,
     )
 
@@ -61,9 +62,9 @@ def train_model():
 
     model = Sequential(
         [
-            augmentation_layer,
+            # augmentation_layer,
             layers.Rescaling(
-                1.0 / 255, input_shape=(img_height, img_width, 3)),
+                1.0 / 255, input_shape=(img_height, img_width, 1)),  # 3)),
             layers.Conv2D(16, 3, padding="same", activation="relu"),
             layers.MaxPooling2D(),
             layers.Conv2D(32, 3, padding="same", activation="relu"),

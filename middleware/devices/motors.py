@@ -3,7 +3,20 @@ from smbus2 import SMBus
 from threading import Lock, Thread
 from typing import Tuple
 
-from numpy import double
+import numpy as np
+
+"""
+Motors
+This class controls the motors, and more generally anything connected to the LABISTS
+daughter board that uses the I2C bus, including the headlights and servo.
+
+We are restricted in what we can do by the protocol of the I2C commands.
+It is important that we don't send commands too fast, or else they will get eaten up by the I2C bus.
+However, we want to send commands to the middleware really fast. The solution is to store the target
+speed values in a buffer. We can send commands to update the target speeds instantaneously.
+Another thread continuously sends the commands to the I2C bus only when the target speed changes,
+or as fast as it is able to.
+"""
 
 # Constants for addressing the I2C bus
 I2C_ADDRESS = 0x18
@@ -32,6 +45,9 @@ I2C_HEADLIGHT_LEFT_ON = 0x3601
 I2C_HEADLIGHT_RIGHT_OFF = 0x3700
 I2C_HEADLIGHT_RIGHT_ON = 0x3701
 
+# Servo controls
+I2C_SERVO_RANGE = [0x0000, 0x00FF]
+
 
 class Motors:
     bus = None
@@ -39,6 +55,8 @@ class Motors:
     buffer = ()
     motor_speed_buffer_lock = None
     t = None
+
+    servo_position = -1
 
     motor_hex_base = 0x2600  # base value of hex I2C commands
     motors = [motor_hex_base, motor_hex_base + 0x100]
@@ -51,6 +69,8 @@ class Motors:
     def __init__(self, ports=(3, 5)) -> None:
         self.bus = SMBus(1)
         time.sleep(1)  # You need to wait for the I2C bus to initialize
+
+        self.servo_position = -1
 
         self.motor_dict_buffer_lock = Lock()
         self.motor_dict = {
@@ -72,6 +92,7 @@ class Motors:
         self.t.start()
 
         self.headlights()
+        self.set_servo_position(95)
 
     # Send a command to the I2C bus
     def send_command(self, word) -> None:
@@ -117,7 +138,7 @@ class Motors:
             time.sleep(0.01)
 
     # Conver the power from double to the hex value expected by the I2C bus
-    def convert_speeds_to_commands(self, speeds: Tuple[double, double]) -> Tuple[int, int]:
+    def convert_speeds_to_commands(self, speeds: Tuple[np.double, np.double]) -> Tuple[int, int]:
         powers = []
         for idx, speed in enumerate(speeds):
             # Get the magnitude of the speed and convert from range [-1, 1] to [0, 10]
@@ -128,7 +149,7 @@ class Motors:
         return tuple(powers)
 
     # Set the speed target for the motors
-    def set_target_speed(self, new_speeds: Tuple[double, double]) -> None:
+    def set_target_speed(self, new_speeds: Tuple[np.double, np.double]) -> None:
         if self.speeds != new_speeds:
             powers = self.convert_speeds_to_commands(new_speeds)
 
@@ -146,3 +167,17 @@ class Motors:
         for command in commands:
             self.send_command(command)
             time.sleep(1)
+
+    # Set the servo position range [0,255]
+    def set_servo_position(self, position):
+        # only servo 8 is connected
+        servo = 8
+        servo_offset = 0x100 * servo
+        if (self.servo_position != position):
+            self.servo_position = position
+            command = servo_offset + \
+                np.clip(position, I2C_SERVO_RANGE[0], I2C_SERVO_RANGE[1])
+            self.send_command(command)
+
+    def get_servo_position(self):
+        return self.servo_position

@@ -30,24 +30,25 @@ Commands to run to use VNC:
 Now retrieve the middleware files located in GitHub repository and store them somewhere easy to access on the Raspberry Pi.
 
 ### Using the Middleware
-#### Step 1
-Ensure that you are connected to a Wi-Fi network and your ASU VIPLE program is also running on the same network. 
-Open a new terminal and type the command 'ifconfig' you will need to save the host ip address for that network and either modify the 'main.py' file with the 
-new address or pass it in as an argument when you run the program which will be explained in Step 2.
+#### Step 1 - Connect to the Robot
+Upon plugging in the robot to power (via the back USB port and turning the switch on), the Raspberry Pi will start to boot up. Once booted up, the Pi will automatically enter access point mode. On your client machine, you will see a wireless network named "RPiRobotX", which you can connect to with the default password "password123".
 
-#### Step 2
-Open a new terminal and go to the directory where you have the middle ware files stored.
-Before executing the program make sure that your VIPLE program is running on another computer.
-To run the middleware use the command:
-###### python main.py
-##### **Note: The above command will work if you modified the 'main.py' file with the new host ip address from the Wi-Fi network you are connected to.**
-To run the middleware by passing the host ip address through the command line use the command:
-###### python main.py -h *insert host ip address*
-##### **Note: If you are using a specific port other than '8124' on your VIPLE program then you can also pass that as an argument as well**
-To run the middleware by passing in both the host ip address and port through the command line use the command:
-###### python main.py -h *insert host ip address* -p *insert port*
+#### Step 2 - Start the Middleware
+Ideally, this step should be completed automatically. Installed on the Raspberry Pi is a service that automatically starts the middleware up on boot. To start the middleware manually, you will need to remotely control the Raspberry Pi using VNC or SSH. Navigate to the directory containing the middleware, and run:
+```./start_middleware.sh```
+You should see the following output in the console if successful:
 
-#### Step 3
-The program should connect to the host and port. Once connected, the program will start to return distance values in JSON as output in the terminal.
-Now you can test your VIPLE program.
-  
+#### Step 3 - Start your VIPLE Program
+Once the middleware is started up, you can start to control the robot using a VIPLE program. Ensure the controller is configured with the IP address of the Raspberry Pi, which should be statically assigned to IP `192.168.16.1`. The middleware runs on port `8124` by default.
+
+Click the triangle to start running the VIPLE program:
+
+When the program is executing, and the connection is successfully established, the headlights on the car will turn on, and they will turn off when the connection ends.
+
+Note: Sometimes if the connection fails, or execution stops prematurely, the robot will continue in motion. To immediately stop the motors without turning off the Pi, press the small switch in the bottom-left corner of the daughter board.
+
+#### Step 4 (optional)
+start the video streaming client
+if you'd like to view the video stream of the robot, you can connect to the video server using the provided RemoteCamera class.
+run: python3 -m common.camera 192.168.16.1
+on the machine connected to the raspberry pi

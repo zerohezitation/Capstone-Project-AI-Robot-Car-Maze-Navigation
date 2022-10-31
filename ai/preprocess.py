@@ -9,13 +9,15 @@ from ..common.utils import process_image
 
 root_new = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/AI/new_processed_images"
 
+classes = ["LeftTurn", "OffsetLeft", "OffsetRight",
+           "OffTrack", "RightTurn", "Straight"]
 
-# Option 1 - Batch preprocess raw images from a directory
-def main1():
+# Batch preprocess raw images from a directory
+
+
+def main():
     root = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/AI/original_processed_images"
 
-    classes = ["LeftTurn", "OffsetLeft", "OffsetRight",
-               "OffTrack", "RightTurn", "Straight"]
     for label in classes:
         print(label)
         path = os.path.join(root, label)
@@ -32,24 +34,5 @@ def main1():
     return 0
 
 
-# Option 2 - Preprocess images while taking them, without storing the raw images
-def main():
-    label = "LeftTurn"
-    camera = Camera()
-    idx = 0
-    print(f"Waiting for input... (class = {label})")
-    input()
-
-    with camera as cam:
-        while True:
-            img = cam.read()
-            proc = process_image(img)
-            new_path = os.path.join(os.path.join(
-                root_new, label), f"{idx}.png")
-            cv2.imwrite(new_path, proc)
-            idx += 1
-            cv2.waitKey(0)
-
-
 if __name__ == "__main__":
-    main1()
+    main()

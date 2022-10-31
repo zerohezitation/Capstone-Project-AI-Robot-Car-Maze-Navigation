@@ -7,7 +7,11 @@ from .sensor import Sensor
 """
 Distance Sensor
 Starts a thread that periodically checks the current distance, and stores it in a buffer
-Exposes a "run" method that acquires the distance from the buffer
+Exposes a "run" method that acquires the distance from the buffer.
+
+You can run this file standalone to test out the sensor without running the middleware:
+
+python3 -m middleware.devices.sensors.distance_sensor
 """
 
 
@@ -49,8 +53,6 @@ class DistanceSensor(Sensor):
                 end = time.time()
 
             sig_time = end-start
-
-            # CM:
             distance = sig_time / 0.000058
 
             self.buffer_lock.acquire()
@@ -65,3 +67,10 @@ class DistanceSensor(Sensor):
         d = self.distance
         self.buffer_lock.release()
         return d
+
+
+if __name__ == "__main__":
+    sensor = DistanceSensor()
+    while True:
+        print(sensor.run())
+        time.sleep(0.05)

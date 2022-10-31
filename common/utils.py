@@ -1,5 +1,8 @@
 import cv2
 import numpy as np
+import struct
+import fcntl
+import socket
 
 
 def grey(image):
@@ -33,6 +36,16 @@ def process_image(image):
     image = cv2.bitwise_and(image, t)
     #cv2.imshow("im2", image)
     image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel)
-    cv2.imshow("1", image)
-    cv2.waitKey(1)
-    return image
+    #cv2.imshow("1", image)
+    # cv2.waitKey(1)
+    return resize(image)
+
+
+def get_ip(interface: str = "wlan0") -> str:
+    # Get the IP address of the specified interface
+    # This is usually a statically assigned IP address but if its not
+    # then we don't have to update the code
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    packed_iface = struct.pack('256s', interface.encode('utf_8'))
+    packed_addr = fcntl.ioctl(sock.fileno(), 0x8915, packed_iface)[20:24]
+    return socket.inet_ntoa(packed_addr)

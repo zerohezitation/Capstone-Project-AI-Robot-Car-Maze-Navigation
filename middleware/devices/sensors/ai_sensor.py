@@ -1,5 +1,5 @@
-# import tflite_runtime.interpreter as tflite
-import tensorflow.lite as tflite
+import tflite_runtime.interpreter as tflite
+# import tensorflow.lite as tflite
 import cv2
 import numpy as np
 import time
@@ -7,6 +7,17 @@ import time
 from .sensor import Sensor
 from common.camera import Camera
 from common.utils import process_image
+
+"""
+AiSensor
+This sensor takes frames from the camera feed and inputs them into the 
+specified AI model. We use the output of this model to return a value
+corresponding to the classification of the road the robot sees (i.e, "straight")
+
+You can run this file standalone to test out the sensor without running the middleware:
+
+python3 -m middleware.devices.sensors.ai_sensor
+"""
 
 
 class AiSensor(Sensor):
@@ -31,7 +42,7 @@ class AiSensor(Sensor):
     # Convert output tensor to prediction
     def map_prediction_to_output(self, output_tensor):
         idx = np.argmax(output_tensor)
-        #print(idx, "p", prediction[idx])
+        print(idx, "p", output_tensor)
         std = np.std(output_tensor)
         if (std < 0.3):  # prediction[idx] < 0.9):  # or ):
             idx = -1
@@ -76,7 +87,7 @@ class AiSensor(Sensor):
         output_details = self.interpreter.get_output_details()
 
         # Read a frame from the camera
-        image = self.cam.read_p()
+        image = self.cam.read()
 
         # Convert to the shape the model is expecting
         image = image.astype(np.float32)
@@ -95,3 +106,12 @@ class AiSensor(Sensor):
 
         # Convert output tensor to predictor
         return self.map_prediction_to_output(output_data[0])
+
+
+if __name__ == "__main__":
+    camera = Camera()
+    with camera as cam:
+        sensor = AiSensor(camera)
+        while True:
+            print(sensor.run())
+            time.sleep(0.1)
