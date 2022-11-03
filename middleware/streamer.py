@@ -4,8 +4,10 @@ from threading import Thread
 import cv2
 import struct
 import base64
+import logging
 
 from common.camera import Camera
+from common.physical_camera import PhysicalCamera
 from common.utils import get_ip
 
 """
@@ -26,55 +28,67 @@ class Streamer():
     def __init__(self, camera: Camera, interface: str = "wlan0", port: int = 8125) -> None:
         self.camera = camera
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        host = get_ip(interface)
-
-        s.bind((host, port))
-        s.listen(10)
-        print(f"Video stream is being served at {host}:{port}")
-
-        self.should_stop = False
-        self.t = Thread(target=self.worker, args=[s])
+        self.sentinel = False
+        self.t = Thread(target=self.worker, args=[interface, port])
         self.t.start()
 
+    # Entering the context of a camera "with Camera() as cam"
+    def __enter__(self):
+        return self
+
+    # When exiting the context of the camera, stop the worker threads
+    def __exit__(self, type, value, traceback):
+        self.sentinel = True
+        if self.t is not None:
+            logging.debug(
+                f"Waiting for video streamer worker thread to finish...")
+            self.t.join()
+        logging.debug(f"Streamer is exiting.")
+
     # Worker thread, continuously reads the camera buffer and sends the frames to the client
-    def worker(self, s: socket.socket):
-        try:
-            while not self.should_stop:
-                # s.settimeout(0)
-                # Accept a remote connection
-                print(f"Video stream waiting for connection...")
-                conn, addr = s.accept()
-                print(f"Video stream connected to {addr}")
+    def worker(self, interface: str, port: int):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            host = get_ip(interface)
 
-                # Start sending frames to the client once connected
-                while not self.should_stop:
-                    photo = self.camera.read()  # read a camera frame
+            s.bind((host, port))
+            s.listen(10)
 
-                    # Enocode to base64
-                    retval, buffer = cv2.imencode('.jpg', photo)
-                    jpg_as_text = base64.b64encode(buffer)
+            # Make the socket non-blocking so that we don't get stuck on s.accept()
+            # Otherwise we won't be able to call .join() on the worker thread when trying to terminate the program
+            s.settimeout(1)
 
-                    # Get the size of the image and encode to byte for header
-                    message_size = struct.pack("Q", len(jpg_as_text))
+            logging.info(f"Video stream is being served at {host}:{port}")
+            while not self.sentinel:
+                try:
+                    conn, addr = s.accept()
+                    with conn:
+                        logging.info(f"Video stream connected to {addr}")
 
-                    try:
-                        # Message format: Size of enocded image, followed by that number of bytes
-                        conn.sendall(message_size + jpg_as_text)
-                    except:
-                        # If there was an error, close the connection and accept a new connection
-                        break
+                        # Start sending frames to the client once connected
+                        while not self.sentinel:
+                            frame = self.camera.read()
 
-                print(f"Closing video stream connection with {addr}")
-                conn.close()
-        finally:
-            print("Closing video stream socket")
-            s.close()
+                            # Enocode to base64
+                            retval, buffer = cv2.imencode('.jpg', frame)
+                            jpg_as_text = base64.b64encode(buffer)
 
-    # Signal the worker thread to stop
-    def stop(self):
-        self.should_stop = True
-        self.t.join()
+                            # Get the size of the image and encode to byte for header
+                            message_size = struct.pack("Q", len(jpg_as_text))
+
+                            # Message format: Size of enocded image, followed by that number of bytes
+                            conn.sendall(message_size + jpg_as_text)
+
+                except socket.timeout:
+                    # If we're here, a connection wasn't made within the timeout window
+                    # Immediately continue checking for connections
+                    continue
+                except BrokenPipeError:
+                    # If we're here, the client terminated the connection and we were unable to send the frame
+                    # Close the connection and try to connect to a new host
+                    break
+                except BlockingIOError as e:
+                    logging.error("Error with video streaming server.", e)
+                    break
 
 
 if __name__ == "__main__":
@@ -88,9 +102,14 @@ if __name__ == "__main__":
         "-p", "--port", help="the port to host the connection on (usually 8125)", default=8125, type=int)
     args = parser.parse_args()
 
-    camera = Camera()
-    with camera as cam:
-        Streamer(cam, args.interface, args.port)
-
-        while True:
+    with PhysicalCamera() as cam:
+        streamer = None
+        try:
+            streamer = Streamer(cam, args.interface, args.port)
+            while True:
+                pass
+        except KeyboardInterrupt:
             pass
+        finally:
+            if streamer is not None:
+                streamer.stop()

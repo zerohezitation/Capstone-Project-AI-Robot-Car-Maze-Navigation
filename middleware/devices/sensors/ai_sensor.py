@@ -1,117 +1,74 @@
 import tflite_runtime.interpreter as tflite
-# import tensorflow.lite as tflite
+#import tensorflow.lite as tflite
 import cv2
 import numpy as np
 import time
+from threading import Lock, Thread, Event
+import logging
 
 from .sensor import Sensor
-from common.camera import Camera
+from common.physical_camera import Camera
 from common.utils import process_image
+from common.buffer import Buffer
 
 """
 AiSensor
-This sensor takes frames from the camera feed and inputs them into the 
-specified AI model. We use the output of this model to return a value
-corresponding to the classification of the road the robot sees (i.e, "straight")
-
-You can run this file standalone to test out the sensor without running the middleware:
-
-python3 -m middleware.devices.sensors.ai_sensor
+This class reads images from the Camera, and inputs them into the
+specified Tensorflow Lite model. It will output the raw output tensor of
+the model.
 """
 
 
 class AiSensor(Sensor):
     cam = None
-
-    state = 2
-    next_state = 0
-    next_state_count = 0
-
     interpreter = None
 
     def __init__(self, camera: Camera, model_path="./model.tflite") -> None:
         super().__init__()
         self.name = "ai"
+        self.sentinel = False
 
         self.cam = camera
         self.interpreter = tflite.Interpreter(model_path=model_path)
         self.interpreter.allocate_tensors()
 
-        self.state = 2
+        self.buffer = Buffer()
+        self.t = Thread(target=self.worker, args=[])
+        self.t.start()
 
-    # Convert output tensor to prediction
-    def map_prediction_to_output(self, output_tensor):
-        idx = np.argmax(output_tensor)
-        print(idx, "p", output_tensor)
-        std = np.std(output_tensor)
-        if (std < 0.3):  # prediction[idx] < 0.9):  # or ):
-            idx = -1
+    def worker(self) -> None:
+        while not self.sentinel:
+            input_details = self.interpreter.get_input_details()
+            output_details = self.interpreter.get_output_details()
 
-        if idx != self.state:
-            if self.next_state == idx:
-                self.next_state_count += 1
-                if self.next_state_count > 5:  # some threshhold to switch between states
-                    self.state = self.next_state
-                    self.next_state_count = 0
-            else:
-                self.next_state_count -= 1
-                if self.next_state_count <= 0:
-                    self.next_state = idx
-                    self.next_state_count = 0
-        else:
-            if self.next_state_count > 0:
-                self.next_state_count -= 1
+            # Read a frame from the camera
+            image = self.cam.read()
 
-        # print(self.state, self.next_state, self.next_state_count)
+            # Convert to the shape the model is expecting
+            image = image.astype(np.float32)
+            image = image[np.newaxis, :, :, np.newaxis]
 
-        idx = self.state
-        # print(prediction[idx])
+            # Set the AI model input
+            self.interpreter.set_tensor(
+                input_details[0]["index"], image)
 
-        if (idx == 0):
-            return "none"
-        elif (idx == 1):
-            return "left"
-        elif (idx == 2):
-            return "offset_left"
-        elif (idx == 3):
-            return "straight"
-        elif (idx == 4):
-            return "offset_right"
-        elif (idx == 5):
-            return "right"
-        else:
-            return "none"
+            # Invoke the model on the frame
+            self.interpreter.invoke()
+
+            # Read the AI model output
+            output_data = self.interpreter.get_tensor(
+                output_details[0]['index'])
+
+            # Write output tensor to the output buffer
+            self.buffer.write(output_data[0])
 
     def run(self):
-        input_details = self.interpreter.get_input_details()
-        output_details = self.interpreter.get_output_details()
+        return self.buffer.read()
 
-        # Read a frame from the camera
-        image = self.cam.read()
-
-        # Convert to the shape the model is expecting
-        image = image.astype(np.float32)
-        image = image[np.newaxis, :, :, np.newaxis]
-
-        # Set the AI model input
-        self.interpreter.set_tensor(
-            input_details[0]["index"], image)
-
-        # Invoke the model on the frame
-        self.interpreter.invoke()
-
-        # Read the AI model output
-        output_data = self.interpreter.get_tensor(
-            output_details[0]['index'])
-
-        # Convert output tensor to predictor
-        return self.map_prediction_to_output(output_data[0])
-
-
-if __name__ == "__main__":
-    camera = Camera()
-    with camera as cam:
-        sensor = AiSensor(camera)
-        while True:
-            print(sensor.run())
-            time.sleep(0.1)
+    def stop(self):
+        self.sentinel = True
+        name = type(self).__name__
+        if self.t is not None:
+            logging.debug(f"Waiting for {name} worker thread to finish...")
+            self.t.join()
+        logging.debug(f"{name} is exiting.")

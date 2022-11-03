@@ -3,7 +3,7 @@ import numpy as np
 import os
 import glob
 
-from ..common.camera import Camera
+from ..common.physical_camera import Camera
 from ..common.utils import process_image
 
 

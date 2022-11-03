@@ -6,7 +6,7 @@ import time
 #import matplotlib.pyplot as plt
 
 from .sensor import Sensor
-from common.camera import Camera
+from common.physical_camera import Camera
 from common.utils import *
 
 # TODO: This needs to be cleaned up a lot, this is the result of a lot of experimenting to see what gives the best results

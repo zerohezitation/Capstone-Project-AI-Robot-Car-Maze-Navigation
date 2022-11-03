@@ -1,6 +1,9 @@
 import RPi.GPIO as GPIO
 import time
 from threading import Thread, Lock
+import logging
+
+from common.buffer import Buffer
 
 from .sensor import Sensor
 
@@ -17,8 +20,6 @@ python3 -m middleware.devices.sensors.distance_sensor
 
 class DistanceSensor(Sensor):
     t = None
-    buffer_lock = None
-    distance = -1
     echo = 5
     trig = 6
 
@@ -35,7 +36,7 @@ class DistanceSensor(Sensor):
         GPIO.setup(echo, GPIO.IN)
 
         # Start a thread that constantly updates the distance buffer
-        self.buffer_lock = Lock()
+        self.buffer = Buffer(-1)
         self.t = Thread(target=self.get_distance, args=())
         self.t.start()
 
@@ -55,22 +56,25 @@ class DistanceSensor(Sensor):
             sig_time = end-start
             distance = sig_time / 0.000058
 
-            self.buffer_lock.acquire()
-            self.distance = distance
-            self.buffer_lock.release()
-            time.sleep(0.05)
+            self.buffer.write(distance)
+
+            time.sleep(0.25)  # update distance 4 times per second
 
     # Get the value of the distance sensor (read the most recent value of buffer)
     def run(self):
-        d = None
-        self.buffer_lock.acquire()
-        d = self.distance
-        self.buffer_lock.release()
-        return d
+        return self.buffer.read()
+
+    def stop(self):
+        self.sentinel = True
+        name = type(self).__name__
+        if self.t is not None:
+            logging.debug(f"Waiting for {name} worker thread to finish...")
+            self.t.join()
+        logging.debug(f"{name} is exiting.")
 
 
 if __name__ == "__main__":
     sensor = DistanceSensor()
     while True:
         print(sensor.run())
-        time.sleep(0.05)
+        time.sleep(0.1)

@@ -2,13 +2,14 @@ import argparse
 import pickle
 import socket
 import struct
-from threading import Thread, Lock, Event
+from threading import Thread
 import numpy as np
 import base64
 import cv2
 import time
 import os
 from datetime import datetime
+import logging
 
 from common.camera import Camera
 from common.processed_camera import ProcessedCamera
@@ -34,73 +35,72 @@ Mode "ai": Run the AiSensor on the client using the streamed video.
 
 class RemoteCamera(Camera):
     def __init__(self, host: str, port: int = 8125) -> None:
-        self.buffer = None
-        self.lock = Lock()
+        super().__init__()
 
-        self.ev = Event()
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # self.s.setblocking(False)
 
         self.t = Thread(target=self.worker, args=[host, port])
         self.t.start()
 
+    # TODO fix this so that the socket closes when the server shuts down
+    # Currently it hangs on self.s.connect() becuase it's waiting for IO
+    # Like the other sockets in the project, we should setblocking(False)
+    # and handle the timeout exception so that we can close the thread from the parent
+    def __exit__(self, type, value, traceback):
+        self.s.shutdown(socket.SHUT_WR)
+        self.s.close()
+        return super().__exit__(type, value, traceback)
+
     def worker(self, host: str, port: int):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Connect to the robot hosting the video streaming server
+        print(f"Connecting to {host}:{port}...")
+        self.s.connect((host, port))
+        print(f"Connected to {host}:{port}")
 
-        print(f"Connecting to {host}:{port}")
-        s.connect((host, port))
-        print('Connected')
-
-        while True:
+        while not self.stop:
             data = b''
             payload_size = 8  # struct.calcsize("L")
 
             while True:
-
-                # Retrieve message size (the first 8 bytes)
                 try:
                     while len(data) < payload_size:
-                        data += s.recv(4096)
-                except TimeoutError:
-                    continue
+                        # Retrieve message size (the first 8 bytes)
+                        data += self.s.recv(4096)
 
-                packed_msg_size = data[:payload_size]
-                data = data[payload_size:]
-                # Convert hex -> int size of payload
-                msg_size = struct.unpack("L", packed_msg_size)[0]
-                # Retrieve all data based on message size
-                while len(data) < msg_size:
-                    data += s.recv(4096)
+                    packed_msg_size = data[:payload_size]
+                    data = data[payload_size:]
+                    # Convert hex -> int size of payload
+                    msg_size = struct.unpack("L", packed_msg_size)[0]
+                    # Retrieve all data based on message size
+                    while len(data) < msg_size:
+                        data += self.s.recv(4096)
 
-                # Get the frame from the application buffer based on message size
-                frame_data = data[:msg_size]
-                # Don't throw away any extra data, it might contain the next frame
-                data = data[msg_size:]
+                    # Get the frame from the application buffer based on message size
+                    frame_data = data[:msg_size]
+                    # Don't throw away any extra data, it might contain the next frame
+                    data = data[msg_size:]
 
-                #img = self.decode_frame(frame_data)
-                nparr = np.frombuffer(base64.b64decode(frame_data), np.uint8)
-                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    img = self.decode_frame(frame_data)
+                    #nparr = np.frombuffer(base64.b64decode(frame_data), np.uint8)
+                    #img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-                self.lock.acquire()
-                self.buffer = np.copy(img)
-                self.lock.release()
-                self.ev.set()
+                    super().write(img)
+                except OSError:
+                    logging.warning(
+                        f"Ending connection with {host}:{port}")
+                    self.stop = True
+                    break
 
+    # Decode the base64 frame to a CV2 color image
     def decode_frame(self, frame):
         nparr = np.frombuffer(base64.b64decode(frame), np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         return img
 
-    def read(self):
-        frame = None
-        while frame is None or len(np.shape(frame)) == 0:
-            self.lock.acquire()
-            frame = np.copy(self.buffer)
-            self.lock.release()
-            if frame is None or len(np.shape(frame)) == 0:
-                time.sleep(0.5)
-        return frame
-
 
 def save_images(stream: RemoteCamera):
+    # Enter the mode for taking training data from a remote camera
     labels = ["OffsetLeft", "Straight", "OffsetRight"]
     timestamp = time.time()
     date_time = datetime.fromtimestamp(timestamp)
@@ -133,22 +133,32 @@ def save_images(stream: RemoteCamera):
 
 
 def test_ai(stream: RemoteCamera):
-    from middleware.devices.sensors.ai_sensor import AiSensor
-    ai = AiSensor(stream)
-    while True:
-        print(ai.run())
-        time.sleep(0.1)
+    # Test the AI model using the remote video camera
+    from middleware.devices.sensors.track_offset_sensor import TrackOffsetSensor
+    with ProcessedCamera(stream) as cam_proc:
+        ai = TrackOffsetSensor(cam_proc)
+        times = []
+        while True:
+            s = time.time()
+            cv2.imshow("Stream", cam_proc.read())
+            print(ai.run())
+            e = time.time()
+            times = [e-s] + times[:100]
+            print((np.average(times) ** -1) / 100)
+            cv2.waitKey(1)
+            time.sleep(0.1)
 
 
 def view(stream: RemoteCamera):
+    # View the raw video stream (color, not processed)
     while True:
         frame = stream.read()
         cv2.imshow("Stream", frame)
         cv2.waitKey(1)
-        # time.sleep(1)
 
 
 def view_processed(stream: RemoteCamera, both=False):
+    # View the processed video stream (resize, grayscale, canny, etc)
     with ProcessedCamera(stream) as cam_proc:
         while True:
             frame = cam_proc.read()
@@ -156,7 +166,6 @@ def view_processed(stream: RemoteCamera, both=False):
             if frame:
                 cv2.imshow("Processed Stream", frame)
                 cv2.waitKey(1)
-            # time.sleep(1)
 
 
 if __name__ == "__main__":
@@ -172,12 +181,15 @@ if __name__ == "__main__":
                         choices=["capture", "ai", "view", "view_p", "view_both"], default="view", dest="mode")
     args = parser.parse_args()
 
-    stream = RemoteCamera(args.host, args.port)
-    if args.mode == "capture":
-        save_images(stream)
-    elif args.mode == "ai":
-        test_ai(stream)
-    elif args.mode == "view":
-        view(stream)
-    elif args.mode == "view_p":
-        view_processed(stream)
+    try:
+        with RemoteCamera(args.host, args.port) as stream:
+            if args.mode == "capture":
+                save_images(stream)
+            elif args.mode == "ai":
+                test_ai(stream)
+            elif args.mode == "view":
+                view(stream)
+            elif args.mode == "view_p":
+                view_processed(stream)
+    except KeyboardInterrupt:
+        pass

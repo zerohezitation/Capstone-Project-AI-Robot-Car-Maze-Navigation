@@ -2,8 +2,10 @@ import time
 from smbus2 import SMBus
 from threading import Lock, Thread
 from typing import Tuple
-
 import numpy as np
+import logging
+
+from common.buffer import Buffer
 
 """
 Motors
@@ -16,6 +18,16 @@ However, we want to send commands to the middleware really fast. The solution is
 speed values in a buffer. We can send commands to update the target speeds instantaneously.
 Another thread continuously sends the commands to the I2C bus only when the target speed changes,
 or as fast as it is able to.
+
+We're also limited by the physical capabilities of the motors. The motors are geared to have a high speed
+but low torque. This means that at the lowest speed setting, it does not take much resistance for the motors
+to stall and fail to spin. However, once you set the speed high enough to overcome the static friction, 
+the gearing is too high, and the robot moves too fast to be able to reliably process the camera feed in time.
+The solution is to implement some sort of PWM control in VIPLE. Turn the motors on at a some power for a short
+period of time, and stop for some period of time. By varying duty cycle, you can control the speed in a more
+fine-grained manner, at the cost of a more jerky motion. We're still limited by the speed at which we
+can send commands down the I2C bus; if we send commands at too high of a frequency, the robot will skip
+phases in the PWM cycle, which manifests as an uneven, jerking motion.
 """
 
 # Constants for addressing the I2C bus
@@ -50,30 +62,19 @@ I2C_SERVO_RANGE = [0x0000, 0x00FF]
 
 
 class Motors:
-    bus = None
-    speeds = (0, 0)
-    buffer = ()
-    motor_speed_buffer_lock = None
-    t = None
-
-    servo_position = -1
-
     motor_hex_base = 0x2600  # base value of hex I2C commands
     motors = [motor_hex_base, motor_hex_base + 0x100]
-    min_speed = 0x0  # 0x1
-
-    motor_dict = {}
-    motor_dict_buffer_lock = None
+    min_speed = 0x1
 
     # Motors constructor
     def __init__(self, ports=(3, 5)) -> None:
-        self.bus = SMBus(1)
-        time.sleep(1)  # You need to wait for the I2C bus to initialize
+        self.i2c_bus_lock = Lock()
+        self.bus = None
 
         self.servo_position = -1
+        self.stop = False
 
-        self.motor_dict_buffer_lock = Lock()
-        self.motor_dict = {
+        self.motor_dict_buffer = Buffer({
             "servos": [
                 {
                     "isTurn": False,
@@ -85,41 +86,65 @@ class Motors:
                     "servoId": ports[1],
                     "servoSpeed": 0
                 }]
-        }
+        })
 
-        self.motor_speed_buffer_lock = Lock()
+        self.motor_speed_buffer = Buffer((None, None))
+        self.last_target_speeds = None
+
         self.t = Thread(target=self.update_motor_speeds, args=())
         self.t.start()
 
-        self.headlights()
-        self.set_servo_position(95)
+    # Entering the context of the motor object
+    def __enter__(self):
+        return self
+
+    # When exiting the context of the motor, stop worker thread
+    def __exit__(self, type, value, traceback):
+        # Stop the motors when the program exits so the robot doesn't fly away
+        self.set_target_speed((0, 0))
+
+        self.stop = True
+        if self.t is not None:
+            logging.debug("Waiting for Motors worker thread to finish...")
+            self.t.join()
+        logging.debug("Motors is exiting.")
 
     # Send a command to the I2C bus
     def send_command(self, word) -> None:
-        self.bus.write_word_data(I2C_ADDRESS, I2C_COMMAND, word)
-        # IMPORTANT!!!!!!!!!
-        # If you sent commands too quickly they will be lost, and your motors will not do what you tell them to!
-        # Below is the minimum amount of time to wait but you should probably wait even longer than this
-        time.sleep(0.001)
+        with self.i2c_bus_lock:
+            if self.bus is not None:
+                self.bus.write_word_data(I2C_ADDRESS, I2C_COMMAND, word)
+                # IMPORTANT!!!!!!!!!
+                # If you sent commands too quickly they will be lost, and your motors will not do what you tell them to!
+                # Below is the minimum amount of time to wait but you should probably wait even longer than this
+                time.sleep(0.05)
 
     # Constantly read the motor speed target, and send I2C commands to match the target
     def update_motor_speeds(self) -> None:
-        while True:
-            # Read the current speed target from the buffer
-            self.motor_speed_buffer_lock.acquire()
-            new_powers = self.buffer
-            new_speeds = self.speeds
-            self.buffer = None
-            self.motor_speed_buffer_lock.release()
+        with self.i2c_bus_lock:
+            logging.debug("Starting I2C Bus...")
+            self.bus = SMBus(1)
+            time.sleep(1)  # You need to wait for the I2C bus to initialize
+            logging.debug("I2C Bus initialized.")
 
-            # If new_powers is None, nothing has tried to write to the buffer since it was last reset, so maintain current power
+        while not self.stop:
+            # Read the current speed target from the buffer
+            new_speeds, new_powers = (None, None)
+            try:
+                new_speeds, new_powers = self.motor_speed_buffer.read(
+                    timeout=0.5)
+            except TimeoutError:
+                continue
+
             if new_powers is not None:
+                logging.debug(
+                    f"Setting motors speeds to new values: {new_speeds}")
                 # If there was new_powers, send commands for L and R motors to match speed
                 for power in new_powers:
-                    self.send_command(power)
+                    self.send_command(int(power))
                     # You need to wait to make sure that the I2C bus doesn't eat up one of the commands!!!!!!!!
-                    time.sleep(0.05)
-
+                    # time.sleep(0.05)
+                logging.debug(f"Finished setting motor speeds: {new_speeds}")
                 # Now that we've set the magnitude of the speed, we need to set the direction and start the motors moving
                 l, r = new_speeds
                 command = None
@@ -133,9 +158,9 @@ class Motors:
                     command = I2C_LEFT
                 elif(l >= 0 and r <= 0):
                     command = I2C_RIGHT
+                logging.debug(f"Setting motor motion for: {new_speeds}")
                 self.send_command(command)
-
-            time.sleep(0.01)
+                # time.sleep(0.01)
 
     # Conver the power from double to the hex value expected by the I2C bus
     def convert_speeds_to_commands(self, speeds: Tuple[np.double, np.double]) -> Tuple[int, int]:
@@ -145,18 +170,16 @@ class Motors:
             offset = abs(int(speed * 10))
             motor = self.motors[idx]
             power = motor + self.min_speed + offset
-            powers.append(power)
+            powers.append(int(power))
         return tuple(powers)
 
     # Set the speed target for the motors
     def set_target_speed(self, new_speeds: Tuple[np.double, np.double]) -> None:
-        if self.speeds != new_speeds:
+        if self.last_target_speeds != new_speeds:
             powers = self.convert_speeds_to_commands(new_speeds)
-
-            self.motor_speed_buffer_lock.acquire()
-            self.speeds = new_speeds
-            self.buffer = powers
-            self.motor_speed_buffer_lock.release()
+            self.last_target_speeds = new_speeds
+            logging.debug(f"Setting motor target speeds: {new_speeds}")
+            self.motor_speed_buffer.write((new_speeds, powers))
 
     # Set the state of the headlights
     def headlights(self, state=True):
@@ -166,7 +189,8 @@ class Motors:
 
         for command in commands:
             self.send_command(command)
-            time.sleep(1)
+            # For some reason, if you don't wait about half a second, usually only one headlight turns on
+            time.sleep(0.5)
 
     # Set the servo position range [0,255]
     def set_servo_position(self, position):
@@ -179,5 +203,6 @@ class Motors:
                 np.clip(position, I2C_SERVO_RANGE[0], I2C_SERVO_RANGE[1])
             self.send_command(command)
 
+    # Get the current position of the servo motor
     def get_servo_position(self):
         return self.servo_position
