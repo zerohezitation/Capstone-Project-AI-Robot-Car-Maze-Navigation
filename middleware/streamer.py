@@ -85,7 +85,7 @@ class Streamer():
                 except BrokenPipeError:
                     # If we're here, the client terminated the connection and we were unable to send the frame
                     # Close the connection and try to connect to a new host
-                    break
+                    continue
                 except BlockingIOError as e:
                     logging.error("Error with video streaming server.", e)
                     break

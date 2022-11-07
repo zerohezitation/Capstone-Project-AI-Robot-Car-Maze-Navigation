@@ -10,6 +10,8 @@ from pathlib import Path
 
 epochs = 150
 
+# TODO add arguments parser
+
 #data_path = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/AI/TrackImages/Images1_50"
 data_path = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/dataset_09_23_24_826977"
 

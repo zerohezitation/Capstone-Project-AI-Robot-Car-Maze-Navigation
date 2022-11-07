@@ -31,9 +31,17 @@ class Camera:
     def read(self):
         current_value = None
         while True:
+            # Read the most recent frame from the buffer
             current_value = self.buffer.read()
+
             if current_value is not None:
+                # We get a valid frame from the buffer, return it
                 break
+
+            # If the buffer was None, a valid frame hasn't been written to the buffer yet
+            # Wait a bit for a valid frame to get written and check again
+            # We can sleep for a relatively long amount of time because this will only happen when you first start up the camera
             time.sleep(0.1)
+
         self.buffer.publish_event.clear()
         return current_value

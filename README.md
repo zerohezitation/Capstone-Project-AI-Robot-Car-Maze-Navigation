@@ -1,54 +1,25 @@
-# Capstone-Project-AI-Robot-Car-Maze-Navigation
+# Capstone Project: AI Robot Car
+This repository contains artifacts related to the Capstone Project for:
+- Matthew Bulger
+- Sean O'Hair
+- Matthew Griffin
+- Jeffrey Adams
+- Tengyu Wang
+- Ethan Cota
 
-## Middleware User Manual:
-### Setting up a new car
-#### Step 1
-Try booting up the Raspberry Pi using the Labists SD card that comes with the car or follow the note below if you coose to use a different SD card.
-##### **Note: If the Raspberry Pi is unable to boot due too not having Raspian installed then you need to use the flash drive with the SD card inserted and download Raspian onto the SD card.**
+## Motivation
 
-#### Step 2
-After downloading Raspian, try booting the Raspberry Pi up once again. If it is unable to boot up then re-install Raspian and try again.
-When going through the setup you will need to connect to a Wi-Fi network, or connect to one once you make it to the Desktop screen.
-##### **Note: Make sure you have the HDMI connected to 2nd HDMI port sometimes it wont boot up if it is connect to the port closest to the power port.**
+The goal of this project is to create a functional robot based on the [LABISTS Raspberry Pi Smart Car](https://labists.com/products/raspberry-pi-smart-car-kit) hardware, that is able to autonomous navigate simple mazes, and follow simple tracks consisting of LEGO road tiles, using a camera, Computer Vision, and AI.
 
-#### Step 3 
-Once you are booted up now you need to go to the Raspberry Pi Menu located in the top left and then
-select Prefrences > Raspberry Pi Configuration > Interfaces and make sure that I2C and Remote GPIO are enabled.
-##### **Helpful: To make life easier we also suggest enabling VNC so that you can connect from a desktop or laptop to the Raspberry Pi without having to connect your keyboard and mouse to the Raspberry PI.**
+While the AI model and Computer Vision runs on the Raspberry Pi, the robot does not directly make decisions on how to move itself. Instead, the robot collects data from all of its attached sensors (the AI model, ultrasonic distance sensor, etc.), and sends this information over the network to another host running [VIPLE](https://venus.sod.asu.edu/VIPLE/), a visual programming language written by the sponsors of our project, Dr. Yinong Chen and Dr. Gennaro De Luca.
 
-#### Step 4 
-Now make a new terminal window and install the following dependencies which are used in the middleware by using these commands:
-###### pip install websockets
-###### pip install smbus2
-###### pip install asyncio
+## About
 
-Commands to run to use VNC:
-###### sudo apt-get update
-###### sudo apt-get install realvnc-vnc-server
+The AI directory contains all files related to training the AI model.
 
-#### Step 5
-Now retrieve the middleware files located in GitHub repository and store them somewhere easy to access on the Raspberry Pi.
+See [Middleware README](./middleware/README.md) for detailed instructions on how to set up the Raspberry Pi robot, including installing dependencies, setting up an access point, the video streamer, and troubleshooting.
 
-### Using the Middleware
-#### Step 1 - Connect to the Robot
-Upon plugging in the robot to power (via the back USB port and turning the switch on), the Raspberry Pi will start to boot up. Once booted up, the Pi will automatically enter access point mode. On your client machine, you will see a wireless network named "RPiRobotX", which you can connect to with the default password "password123".
+The VIPLE directory contains multiple sample VIPLE programs you can use. Some of them are "traditional", implying they don't use the AI model or camera, relying entirely on user input or the ultrasonic distance sensors. Others use the AI model to autonomously navigate a LEGO road.
 
-#### Step 2 - Start the Middleware
-Ideally, this step should be completed automatically. Installed on the Raspberry Pi is a service that automatically starts the middleware up on boot. To start the middleware manually, you will need to remotely control the Raspberry Pi using VNC or SSH. Navigate to the directory containing the middleware, and run:
-```./start_middleware.sh```
-You should see the following output in the console if successful:
-
-#### Step 3 - Start your VIPLE Program
-Once the middleware is started up, you can start to control the robot using a VIPLE program. Ensure the controller is configured with the IP address of the Raspberry Pi, which should be statically assigned to IP `192.168.16.1`. The middleware runs on port `8124` by default.
-
-Click the triangle to start running the VIPLE program:
-
-When the program is executing, and the connection is successfully established, the headlights on the car will turn on, and they will turn off when the connection ends.
-
-Note: Sometimes if the connection fails, or execution stops prematurely, the robot will continue in motion. To immediately stop the motors without turning off the Pi, press the small switch in the bottom-left corner of the daughter board.
-
-#### Step 4 (optional)
-start the video streaming client
-if you'd like to view the video stream of the robot, you can connect to the video server using the provided RemoteCamera class.
-run: python3 -m common.camera 192.168.16.1
-on the machine connected to the raspberry pi
+Below is a flowchart indicating how the various components of this project work together.
+![](./images/flow.png)
