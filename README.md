@@ -1,53 +1,25 @@
-# Capstone-Project-AI-Robot-Car-Maze-Navigation
+# Capstone Project: AI Robot Car
+This repository contains artifacts related to the Capstone Project for:
+- Matthew Bulger
+- Sean O'Hair
+- Matthew Griffin
+- Jeffrey Adams
+- Tengyu Wang
+- Ethan Cota
 
-## Middleware User Manual:
-### Setting up a new car
-#### Step 1
-Try booting up the Raspberry Pi using the Labists SD card that comes with the car or follow the note below if you coose to use a different SD card.
-##### **Note: If the Raspberry Pi is unable to boot due too not having Raspian installed then you need to use the flash drive with the SD card inserted and download Raspian onto the SD card.**
+## Motivation
 
-#### Step 2
-After downloading Raspian, try booting the Raspberry Pi up once again. If it is unable to boot up then re-install Raspian and try again.
-When going through the setup you will need to connect to a Wi-Fi network, or connect to one once you make it to the Desktop screen.
-##### **Note: Make sure you have the HDMI connected to 2nd HDMI port sometimes it wont boot up if it is connect to the port closest to the power port.**
+The goal of this project is to create a functional robot based on the [LABISTS Raspberry Pi Smart Car](https://labists.com/products/raspberry-pi-smart-car-kit) hardware, that is able to autonomous navigate simple mazes, and follow simple tracks consisting of LEGO road tiles, using a camera, Computer Vision, and AI.
 
-#### Step 3 
-Once you are booted up now you need to go to the Raspberry Pi Menu located in the top left and then
-select Prefrences > Raspberry Pi Configuration > Interfaces and make sure that I2C and Remote GPIO are enabled.
-##### **Helpful: To make life easier we also suggest enabling VNC so that you can connect from a desktop or laptop to the Raspberry Pi without having to connect your keyboard and mouse to the Raspberry PI.**
+While the AI model and Computer Vision runs on the Raspberry Pi, the robot does not directly make decisions on how to move itself. Instead, the robot collects data from all of its attached sensors (the AI model, ultrasonic distance sensor, etc.), and sends this information over the network to another host running [VIPLE](https://venus.sod.asu.edu/VIPLE/), a visual programming language written by the sponsors of our project, Dr. Yinong Chen and Dr. Gennaro De Luca.
 
-#### Step 4 
-Now make a new terminal window and install the following dependencies which are used in the middleware by using these commands:
-###### pip install websockets
-###### pip install smbus2
-###### pip install asyncio
+## About
 
-Commands to run to use VNC:
-###### sudo apt-get update
-###### sudo apt-get install realvnc-vnc-server
+The AI directory contains all files related to training the AI model.
 
-#### Step 5
-Now retrieve the middleware files located in GitHub repository and store them somewhere easy to access on the Raspberry Pi.
+See [Middleware README](./middleware/README.md) for detailed instructions on how to set up the Raspberry Pi robot, including installing dependencies, setting up an access point, the video streamer, and troubleshooting.
 
-### Using the Middleware
-#### Step 1
-Ensure that you are connected to a Wi-Fi network and your ASU VIPLE program is also running on the same network. 
-Open a new terminal and type the command 'ifconfig' you will need to save the host ip address for that network and either modify the 'main.py' file with the 
-new address or pass it in as an argument when you run the program which will be explained in Step 2.
+The VIPLE directory contains multiple sample VIPLE programs you can use. Some of them are "traditional", implying they don't use the AI model or camera, relying entirely on user input or the ultrasonic distance sensors. Others use the AI model to autonomously navigate a LEGO road.
 
-#### Step 2
-Open a new terminal and go to the directory where you have the middle ware files stored.
-Before executing the program make sure that your VIPLE program is running on another computer.
-To run the middleware use the command:
-###### python main.py
-##### **Note: The above command will work if you modified the 'main.py' file with the new host ip address from the Wi-Fi network you are connected to.**
-To run the middleware by passing the host ip address through the command line use the command:
-###### python main.py -h *insert host ip address*
-##### **Note: If you are using a specific port other than '8124' on your VIPLE program then you can also pass that as an argument as well**
-To run the middleware by passing in both the host ip address and port through the command line use the command:
-###### python main.py -h *insert host ip address* -p *insert port*
-
-#### Step 3
-The program should connect to the host and port. Once connected, the program will start to return distance values in JSON as output in the terminal.
-Now you can test your VIPLE program.
-  
+Below is a flowchart indicating how the various components of this project work together.
+![](./images/flow.png)
