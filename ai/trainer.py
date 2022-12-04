@@ -12,14 +12,14 @@ epochs = 150
 
 # TODO add arguments parser
 
-#data_path = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/AI/TrackImages/Images1_50"
-data_path = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/dataset_09_23_24_826977"
+# data_path = r"/home/mbulger/Documents/Capstone_Project/Capstone-Project-AI-Robot-Car-Maze-Navigation/AI/TrackImages/Images1_50"
+data_path = r"/Users/mgriffin/Documents/CapstoneRepo/Capstone-Project-AI-Robot-Car-Maze-Navigation/dataset_12_12_00_877387"
 
 
 def train_model():
     data_dir = Path(data_path)
     img_width = 160  # 640
-    img_height = 64  # 480
+    img_height = 32  # 480
     batch_size = 32
     # class_names = ["LeftTurn", "OffsetLeft",
     # "Straight", "OffsetRight", "RightTurn"]
@@ -32,7 +32,7 @@ def train_model():
         class_names=class_names,
         color_mode="grayscale",  # use only 1 channel
         seed=4,  # must set a specific seed for deterministic validation split
-        image_size=(64, 160),  # resize input images down to 160x64
+        image_size=(img_height, img_width),  # resize input images down to 160x64
         validation_split=0.2,  # use 20% of training images for validation
         subset="both",  # return training dataset and validation dataset
         batch_size=batch_size,
@@ -65,18 +65,17 @@ def train_model():
     model = Sequential(
         [
             # augmentation_layer,
-            layers.Rescaling(
-                1.0 / 255, input_shape=(img_height, img_width, 1)),  # 3)),
-            layers.Conv2D(16, 3, padding="same", activation="relu"),
+            layers.Rescaling(1.0 / 255, input_shape=(img_height, img_width, 1)),  # 3)),
+            layers.SeparableConv2D(16, 3, padding="same", activation="relu"),
             layers.MaxPooling2D(),
-            layers.Conv2D(32, 3, padding="same", activation="relu"),
+            layers.SeparableConv2D(32, 3, padding="same", activation="relu"),
             layers.MaxPooling2D(),
-            layers.Conv2D(64, 3, padding="same", activation="relu"),
+            layers.SeparableConv2D(64, 3, padding="same", activation="relu"),
             layers.MaxPooling2D(),
             layers.Dropout(rate=0.25),
             layers.Flatten(),
             layers.Dense(128, activation="relu"),
-            layers.Dense(len(class_names), activation='softmax')
+            layers.Dense(len(class_names), activation="softmax"),
         ]
     )
 
@@ -87,8 +86,7 @@ def train_model():
         # loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False),
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
         # metrics=["accuracy"],
-        metrics=["accuracy",
-                 tf.keras.metrics.SparseTopKCategoricalAccuracy(k=2)]
+        metrics=["accuracy", tf.keras.metrics.SparseTopKCategoricalAccuracy(k=2)],
     )
 
     model.summary()
@@ -99,30 +97,30 @@ def train_model():
 
 
 def visualize(history):
-    acc1 = history.history['accuracy']
-    val_acc1 = history.history['val_accuracy']
-    acc = history.history['sparse_top_k_categorical_accuracy']
-    val_acc = history.history['val_sparse_top_k_categorical_accuracy']
+    acc1 = history.history["accuracy"]
+    val_acc1 = history.history["val_accuracy"]
+    acc = history.history["sparse_top_k_categorical_accuracy"]
+    val_acc = history.history["val_sparse_top_k_categorical_accuracy"]
 
-    loss = history.history['loss']
-    val_loss = history.history['val_loss']
+    loss = history.history["loss"]
+    val_loss = history.history["val_loss"]
 
     epochs_range = range(epochs)
 
     plt.figure(figsize=(8, 8))
     plt.subplot(1, 2, 1)
-    plt.plot(epochs_range, acc, label='Training Accuracy')
-    plt.plot(epochs_range, val_acc, label='Validation Accuracy')
-    plt.plot(epochs_range, acc1, label='Training Accuracy1')
-    plt.plot(epochs_range, val_acc1, label='Validation Accuracy1')
-    plt.legend(loc='lower right')
-    plt.title('Training and Validation Accuracy')
+    plt.plot(epochs_range, acc, label="Training Accuracy")
+    plt.plot(epochs_range, val_acc, label="Validation Accuracy")
+    plt.plot(epochs_range, acc1, label="Training Accuracy1")
+    plt.plot(epochs_range, val_acc1, label="Validation Accuracy1")
+    plt.legend(loc="lower right")
+    plt.title("Training and Validation Accuracy")
 
     plt.subplot(1, 2, 2)
-    plt.plot(epochs_range, loss, label='Training Loss')
-    plt.plot(epochs_range, val_loss, label='Validation Loss')
-    plt.legend(loc='upper right')
-    plt.title('Training and Validation Loss')
+    plt.plot(epochs_range, loss, label="Training Loss")
+    plt.plot(epochs_range, val_loss, label="Validation Loss")
+    plt.legend(loc="upper right")
+    plt.title("Training and Validation Loss")
     plt.show()
 
 

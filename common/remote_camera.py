@@ -59,7 +59,7 @@ class RemoteCamera(Camera):
         print(f"Connected to {host}:{port}")
 
         while not self.stop:
-            data = b''
+            data = b""
             payload_size = 8  # struct.calcsize("L")
 
             while True:
@@ -71,7 +71,7 @@ class RemoteCamera(Camera):
                     packed_msg_size = data[:payload_size]
                     data = data[payload_size:]
                     # Convert hex -> int size of payload
-                    msg_size = struct.unpack("L", packed_msg_size)[0]
+                    msg_size = struct.unpack("Q", packed_msg_size)[0]
                     # Retrieve all data based on message size
                     while len(data) < msg_size:
                         data += self.s.recv(4096)
@@ -82,13 +82,12 @@ class RemoteCamera(Camera):
                     data = data[msg_size:]
 
                     img = self.decode_frame(frame_data)
-                    #nparr = np.frombuffer(base64.b64decode(frame_data), np.uint8)
-                    #img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    # nparr = np.frombuffer(base64.b64decode(frame_data), np.uint8)
+                    # img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
                     super().write(img)
                 except OSError:
-                    logging.warning(
-                        f"Ending connection with {host}:{port}")
+                    logging.warning(f"Ending connection with {host}:{port}")
                     self.stop = True
                     break
 
@@ -117,17 +116,18 @@ def save_images(stream: RemoteCamera):
             os.mkdir(class_path)
 
             while True:
-                command = input(
-                    "Take image? (Type 'next' to move to the next class)")
+                command = input("Take image? (Type 'next' to move to the next class)")
                 if command == "next":
                     break
+                # print("pre image")
                 image = cam_proc.read()
-
+                # print("made it")
                 timestamp = time.time()
                 date_time = datetime.fromtimestamp(timestamp)
                 str_time = date_time.strftime(r"%I_%M_%S_%f")
                 new_path = os.path.join(class_path, f"{str_time}.png")
                 cv2.imwrite(new_path, image)
+                # print("made it 2")
                 print(f"\tImage #{idx}: {str_time}.png")
                 idx += 1
 
@@ -135,6 +135,7 @@ def save_images(stream: RemoteCamera):
 def test_ai(stream: RemoteCamera):
     # Test the AI model using the remote video camera
     from middleware.devices.sensors.track_offset_sensor import TrackOffsetSensor
+
     with ProcessedCamera(stream) as cam_proc:
         ai = TrackOffsetSensor(cam_proc)
         times = []
@@ -143,7 +144,7 @@ def test_ai(stream: RemoteCamera):
             cv2.imshow("Stream", cam_proc.read())
             print(ai.run())
             e = time.time()
-            times = [e-s] + times[:100]
+            times = [e - s] + times[:100]
             print((np.average(times) ** -1) / 100)
             cv2.waitKey(1)
             time.sleep(0.1)
@@ -163,7 +164,7 @@ def view_processed(stream: RemoteCamera, both=False):
         while True:
             frame = cam_proc.read()
             print(np.shape(frame))
-            if frame:
+            if True:
                 cv2.imshow("Processed Stream", frame)
                 cv2.waitKey(1)
 
@@ -173,12 +174,23 @@ if __name__ == "__main__":
         prog="python3 -m common.remote_camera",
         description="Video Streaming Client for Raspberry Pi Robot. Use to remotely connect to the robot's camera.",
     )
+    parser.add_argument("host", help="the robot ip address")
     parser.add_argument(
-        "host", help="the robot ip address")
-    parser.add_argument("-p", "--port", type=int,
-                        help="the robot video streaming server port (usually 8125)", default=8125, dest="port")
-    parser.add_argument("-m", "--mode", help="Choose program mode. ",
-                        choices=["capture", "ai", "view", "view_p", "view_both"], default="view", dest="mode")
+        "-p",
+        "--port",
+        type=int,
+        help="the robot video streaming server port (usually 8125)",
+        default=8125,
+        dest="port",
+    )
+    parser.add_argument(
+        "-m",
+        "--mode",
+        help="Choose program mode. ",
+        choices=["capture", "ai", "view", "view_p", "view_both"],
+        default="view",
+        dest="mode",
+    )
     args = parser.parse_args()
 
     try:

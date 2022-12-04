@@ -30,16 +30,16 @@ class TrackOffsetSensor(AiSensor):
     # Convert output tensor to prediction
     def map_prediction_to_output(self, output_tensor):
         idx = np.argmax(output_tensor)
-        #print(idx, "p", output_tensor)
-        #std = np.std(output_tensor)
-        if (idx == -1 or output_tensor[idx] < 0.9):
+        # print(idx, "p", output_tensor)
+        # std = np.std(output_tensor)
+        if idx == -1 or output_tensor[idx] < 0.9:
             idx = -1
 
-        if (idx == 0):
+        if idx == 0:
             return "offset_right"
-        elif (idx == 1):
+        elif idx == 1:
             return "straight"
-        elif (idx == 2):
+        elif idx == 2:
             return "offset_left"
 
         return "none"

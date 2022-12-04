@@ -1,7 +1,7 @@
 import numpy as np
 import time
 import logging
-
+import cv2
 from common.buffer import Buffer
 
 
@@ -27,6 +27,7 @@ class Camera:
 
     def write(self, image):
         self.buffer.write(image)
+        # cv2.imshow("image in camera", image)
 
     def read(self):
         current_value = None
